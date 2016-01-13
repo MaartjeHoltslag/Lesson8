@@ -16,6 +16,17 @@ load("data/GewataB4.rda")
 load("data/GewataB5.rda")
 load("data/GewataB7.rda")
 load("data/vcfGewata.rda")
+vcfGewata[vcfGewata > 100] <- NA
 Gewata <- brick(GewataB1, GewataB2, GewataB3, GewataB4, GewataB5, GewataB7, vcfGewata)
+GewataBands <- brick(GewataB1, GewataB2, GewataB3, GewataB4, GewataB5, GewataB7)
+GewataValues <- as.data.frame(getValues(Gewata))
+
 pairs(Gewata)
-plot(vcfGewata)
+
+correlationModel <- lm(vcf2000Gewata ~ gewataB1+ gewataB2 + gewataB3 + gewataB4 + gewataB5 + gewataB7, data = GewataValues) 
+summary(correlationModel)
+
+predictTreeC <- predict(GewataBands, model=correlationModel, na.rm=TRUE)
+predictTreeC[predictTreeC < 0] <- NA
+
+plot(predictTreeC, main="Predicted tree cover", zlim=c(0,100))
