@@ -1,0 +1,117 @@
+title: "Lesson8"
+author: "Maartje Holtslag & Jorn Habes"
+date: "January 14, 2016"
+output: html_document
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import libraries and download data
+Load the required libraries, in this case the raster library.
+
+```{r library}
+library(raster)
+```
+Set the working directory and create a new folder called data.
+```{r directory, results="hide"}
+setwd("/home/user/git/geoScripting/Lesson8")
+dir.create("./data")
+```
+
+Download the required data from github.
+```{r download, results='hide'}
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB1.rda", destfile= "data/GewataB1.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB2.rda", destfile= "data/GewataB2.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB3.rda", destfile= "data/GewataB3.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB4.rda", destfile= "data/GewataB4.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB5.rda", destfile= "data/GewataB5.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB7.rda", destfile= "data/GewataB7.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/vcfGewata.rda", destfile= "data/vcfGewata.rda", method = "wget")
+download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/trainingPoly.rda", destfile= "data/trainingPoly.rda", method = "wget")
+```
+Load the required data from the folders.
+```{r load, results='hide'}
+load("data/GewataB1.rda")
+load("data/GewataB2.rda")
+load("data/GewataB3.rda")
+load("data/GewataB4.rda")
+load("data/GewataB5.rda")
+load("data/GewataB7.rda")
+load("data/vcfGewata.rda")
+load("data/trainingPoly.rda")
+```
+##Raster analysis
+Remove the cloud and water errors in the VCF data.
+```{r removeerror}
+vcfGewata[vcfGewata > 100] <- NA
+``` 
+Brick the Gewata raster data.
+```{r brickGewata}
+Gewata <- brick(GewataB1, GewataB2, GewataB3, GewataB4, GewataB5, GewataB7, vcfGewata)
+GewataBands <- brick(GewataB1, GewataB2, GewataB3, GewataB4, GewataB5, GewataB7)
+```
+Create a data frame from the bricked Gewata rasters.
+```{r dataframe}
+GewataValues <- as.data.frame(getValues(Gewata))
+```
+Plot the Gewata pairs to compare to the VCF raster.
+```{r pairing}
+pairs(Gewata)
+```
+The plot above shows the correlation between the different rasters. The higher the correlation coefficient the more similar the data is they contain. For the VCF it seems that band 3 and 7 show the highest correlation with the VCF, and band 4 is not showing any correlation at all. This means that when trying to predict the tree cover based on these bands all but band 4 are usefull.
+
+Create the correlation model and test whether the above mentioned statement is true.
+```{r model}
+correlationModel <- lm(vcf2000Gewata ~ gewataB1+ gewataB2 + gewataB3 + gewataB4 + gewataB5 + gewataB7, data = GewataValues) 
+summary(correlationModel)
+```
+In the summary above the Pr (Probability) value determines whether the band has a predictive value for the model. The lower the Pr the better the band is to predict the tree cover. This means that all bands except band 7 have predictive value for the tree cover.
+
+## Predicted tree cover raster and comparison
+Create the predicted tree cover raster based on the correlation model and convert it to a data frame.
+```{r predict}
+predictTreeC <- predict(GewataBands, model=correlationModel, na.rm=TRUE)
+predictTreeC[predictTreeC < 0] <- NA
+predictTreeCdf <- as.data.frame(getValues(predictTreeC))
+```
+```{r predictplot, echo=FALSE}
+plot(predictTreeC, main="Predicted tree cover", zlim=c(0,100))
+```
+Compare the predicted tree cover raster to the VCF raster.
+```{r compare}
+pairs(brick(predictTreeC, vcfGewata))
+```
+The plot above shows a very high correlation which means the model fits the actual raster pretty well. 
+
+## Root Mean Squared Error
+Calculate the RMSE (root mean squared error) to compare the predicted tree cover raster to VCF raster.
+```{r RMSE}
+RMSE <- (sqrt(mean((GewataValues$vcf2000Gewata-predictTreeCdf)^2, na.rm = T)))
+``` 
+```{r printRMSE, echo=FALSE}
+RMSE
+``` 
+##Training classes comparison
+Calculate the NDVI required for the training classes comparison.
+```{r NDVI}
+ndvi <- overlay(GewataB3, GewataB4, fun=function(x,y){(y-x)/(x+y)})
+```
+Make trainingPoly classes integers.
+```{r integers}
+trainingPoly@data$Code <- as.numeric(trainingPoly@data$Class)
+```
+Create the classes raster.
+```{r classes}
+classes <- rasterize(trainingPoly, ndvi, field='Code')
+```
+Calculate the RMSE for each class.
+```{r calculate}
+difference <- (vcfGewata-predictTreeC)^2
+TreeCovDif <- zonal(difference, classes)
+RMSEclasses <- (sqrt(TreeCovDif[,2]))
+``` 
+```{r RMSEhide, echo=FALSE}
+RMSEclasses
+```
+The RMSE for the classes shows that the model predicts the tree cover best for forest (RMSE=4.99) and the worst for wetland (RMSE=11.91).
