@@ -1,8 +1,25 @@
-#Load required libraries
+title: "Lesson8"
+author: "Maartje Holtslag & Jorn Habes"
+date: "January 14, 2016"
+output: html_document
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import libraries and download data
+Load the required libraries, in this case the raster library.
+
+```{r library}
 library(raster)
-#Set working directory
+```
+Set the working directory and create a new folder called data.
+```{r directory}
 setwd("/home/user/git/geoScripting/Lesson8")
 dir.create("./data")
+```
+
+
 #Download required data
 download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB1.rda", destfile= "data/GewataB1.rda", method = "wget")
 download.file(url = "https://github.com/GeoScripting-WUR/AdvancedRasterAnalysis/raw/gh-pages/data/GewataB2.rda", destfile= "data/GewataB2.rda", method = "wget")
