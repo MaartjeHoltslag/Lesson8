@@ -1,8 +1,9 @@
+---
 title: "Lesson8"
 author: "Maartje Holtslag & Jorn Habes"
 date: "January 14, 2016"
 output: html_document
-
+---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -59,6 +60,7 @@ Plot the Gewata pairs to compare to the VCF raster.
 ```{r pairing}
 pairs(Gewata)
 ```
+
 The plot above shows the correlation between the different rasters. The higher the correlation coefficient the more similar the data is they contain. For the VCF it seems that band 3 and 7 show the highest correlation with the VCF, and band 4 is not showing any correlation at all. This means that when trying to predict the tree cover based on these bands all but band 4 are usefull.
 
 Create the correlation model and test whether the above mentioned statement is true.
@@ -78,10 +80,12 @@ predictTreeCdf <- as.data.frame(getValues(predictTreeC))
 ```{r predictplot, echo=FALSE}
 plot(predictTreeC, main="Predicted tree cover", zlim=c(0,100))
 ```
+
 Compare the predicted tree cover raster to the VCF raster.
 ```{r compare}
 pairs(brick(predictTreeC, vcfGewata))
 ```
+
 The plot above shows a very high correlation which means the model fits the actual raster pretty well. 
 
 ## Root Mean Squared Error
